@@ -1,0 +1,17 @@
+# Secrets — NEVER commit these
+config.json
+token.txt
+
+# Runtime state
+state/
+*.log
+*.lock
+tg_offset*.txt
+tg_send_ledger.json
+
+# OS / editor cruft
+.DS_Store
+*.pyc
+__pycache__/
+.vscode/
+.idea/
