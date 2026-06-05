@@ -1,0 +1,9 @@
+.vscode/**
+src/**
+build/**
+**/*.ts
+**/*.map
+tsconfig.json
+.gitignore
+node_modules/**
+# Keep: out/** (compiled JS) and scripts/** (bundled Python hooks)

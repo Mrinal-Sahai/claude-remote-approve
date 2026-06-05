@@ -1,0 +1,56 @@
+{
+  "name": "claude-remote-approve",
+  "displayName": "Claude Remote Approve (Telegram)",
+  "description": "Approve Claude Code permission prompts from your phone over Telegram.",
+  "version": "0.1.0",
+  "publisher": "MrinalSahai",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Mrinal-Sahai/claude-remote-approve.git"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other"],
+  "keywords": ["claude", "claude code", "telegram", "approval", "remote"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "claudeTgApprove.setup",
+        "title": "Telegram Approve: Setup / Connect bot"
+      },
+      {
+        "command": "claudeTgApprove.toggle",
+        "title": "Telegram Approve: Enable / Disable"
+      },
+      {
+        "command": "claudeTgApprove.manageAllowlist",
+        "title": "Telegram Approve: Manage 'Always' allowlist"
+      },
+      {
+        "command": "claudeTgApprove.openLog",
+        "title": "Telegram Approve: Open log"
+      },
+      {
+        "command": "claudeTgApprove.reconnect",
+        "title": "Telegram Approve: Reconnect / change bot"
+      }
+    ]
+  },
+  "scripts": {
+    "copy-scripts": "node ./build/copy-scripts.js",
+    "compile": "npm run copy-scripts && tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "vscode:prepublish": "npm run compile",
+    "package": "vsce package",
+    "lint": "tsc --noEmit -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.4.0"
+  }
+}

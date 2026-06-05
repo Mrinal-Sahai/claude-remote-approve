@@ -45,6 +45,15 @@ auto-approved. If you ignore the phone, you just answer in the editor as usual.
 
 ## Install
 
+### Option A — VS Code extension (one-click setup)
+
+Install **“Claude Remote Approve (Telegram)”** from the Marketplace, then run
+**Telegram Approve: Setup** from the Command Palette. It bundles these scripts,
+walks you through connecting your bot, and wires everything up. See
+[`vscode-extension/`](vscode-extension/).
+
+### Option B — Shell installer (terminal / non-VS-Code)
+
 ```bash
 git clone https://github.com/Mrinal-Sahai/claude-remote-approve.git
 cd claude-remote-approve
