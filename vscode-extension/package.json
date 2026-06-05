@@ -22,6 +22,7 @@
     "approval",
     "remote"
   ],
+  "icon": "icon.png",
   "activationEvents": [
     "onStartupFinished"
   ],
