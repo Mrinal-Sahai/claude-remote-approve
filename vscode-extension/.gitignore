@@ -1,5 +1,6 @@
 node_modules/
 out/
 *.vsix
+.vscode-test/
 # Generated at build time from ../hooks/tg-approve (single source of truth)
 scripts/

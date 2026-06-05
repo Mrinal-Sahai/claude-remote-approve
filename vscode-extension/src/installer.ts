@@ -1,9 +1,9 @@
 // Filesystem side of the extension: install hook scripts, patch settings.json,
 // write config.json (chmod 600), and read/flip runtime state.
-import * as fs from "fs";
-import * as os from "os";
-import * as path from "path";
-import { execFileSync } from "child_process";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+import { execFileSync } from "node:child_process";
 
 const HOOK_FILES = ["approve.py", "dispatcher.py", "watcher.py", "post_tool.py", "tg_common.py", "tg_setup.py"];
 const MATCHER = "Bash|Write|Edit|MultiEdit|NotebookEdit|WebFetch";
@@ -101,6 +101,54 @@ export function patchSettings(python: string): string[] {
   return added;
 }
 
+/**
+ * Remove ONLY our Pre/PostToolUse entries from settings.json, preserving every
+ * other hook the user has. Empties left behind are pruned. Returns how many
+ * entries were removed.
+ */
+export function unpatchSettings(): number {
+  const settingsPath = path.join(claudeDir(), "settings.json");
+  let settings: any;
+  try {
+    settings = JSON.parse(fs.readFileSync(settingsPath, "utf8"));
+  } catch {
+    return 0;
+  }
+  if (!settings.hooks) {
+    return 0;
+  }
+  let removed = 0;
+  const ours = ["approve.py", "post_tool.py"];
+  for (const event of ["PreToolUse", "PostToolUse"]) {
+    const entries: HookEntry[] | undefined = settings.hooks[event];
+    if (!Array.isArray(entries)) {
+      continue;
+    }
+    const kept = entries.filter((e) => {
+      const isOurs = (e.hooks || []).some((h) => ours.some((s) => (h.command || "").includes(s)));
+      if (isOurs) {
+        removed++;
+      }
+      return !isOurs;
+    });
+    if (kept.length > 0) {
+      settings.hooks[event] = kept;
+    } else {
+      delete settings.hooks[event];
+    }
+  }
+  if (Object.keys(settings.hooks).length === 0) {
+    delete settings.hooks;
+  }
+  fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
+  return removed;
+}
+
+/** Delete the entire hook dir (scripts, config, logs, allowlist, state). */
+export function removeHookDir(): void {
+  fs.rmSync(hookDir(), { recursive: true, force: true });
+}
+
 export interface HookConfig {
   bot_token: string;
   chat_id: string;
@@ -162,5 +210,5 @@ export function writeAllowlist(rules: string[]): void {
 
 export function isConfigured(): boolean {
   const cfg = readConfig();
-  return !!(cfg && cfg.bot_token && cfg.chat_id);
+  return !!(cfg?.bot_token && cfg?.chat_id);
 }

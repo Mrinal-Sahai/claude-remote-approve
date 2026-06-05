@@ -26,6 +26,8 @@ Click the **Telegram** item in the status bar for:
 - **Manage 'Always' allowlist** — review and remove saved auto-approve rules.
 - **Reconnect / change bot** — re-run setup with a different bot.
 - **Open log** — view `~/.claude/hooks/tg-approve/tg-approve.log`.
+- **Uninstall hooks** — cleanly remove our `settings.json` entries (keeping your
+  other hooks); optionally wipe the scripts, config, and saved token too.
 
 ## How the token is stored
 

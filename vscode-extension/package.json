@@ -12,9 +12,19 @@
   "engines": {
     "vscode": "^1.85.0"
   },
-  "categories": ["Other"],
-  "keywords": ["claude", "claude code", "telegram", "approval", "remote"],
-  "activationEvents": ["onStartupFinished"],
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "claude",
+    "claude code",
+    "telegram",
+    "approval",
+    "remote"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
@@ -37,6 +47,10 @@
       {
         "command": "claudeTgApprove.reconnect",
         "title": "Telegram Approve: Reconnect / change bot"
+      },
+      {
+        "command": "claudeTgApprove.uninstall",
+        "title": "Telegram Approve: Uninstall hooks"
       }
     ]
   },
@@ -46,11 +60,18 @@
     "watch": "tsc -watch -p ./",
     "vscode:prepublish": "npm run compile",
     "package": "vsce package",
-    "lint": "tsc --noEmit -p ./"
+    "lint": "tsc --noEmit -p ./",
+    "test:unit": "npm run compile && node --test test/unit/*.test.js",
+    "test:integration": "npm run compile && vscode-test",
+    "test": "npm run test:unit"
   },
   "devDependencies": {
+    "@types/mocha": "^10.0.10",
     "@types/node": "^20.11.0",
     "@types/vscode": "^1.85.0",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2",
+    "mocha": "^11.7.6",
     "typescript": "^5.4.0"
   }
 }

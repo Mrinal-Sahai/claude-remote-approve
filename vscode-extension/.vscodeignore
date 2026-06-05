@@ -1,9 +1,13 @@
 .vscode/**
 src/**
 build/**
+test/**
+out/test/**
+.vscode-test.mjs
+.vscode-test/**
 **/*.ts
 **/*.map
 tsconfig.json
 .gitignore
 node_modules/**
-# Keep: out/** (compiled JS) and scripts/** (bundled Python hooks)
+# Keep: out/**/*.js (compiled extension) and scripts/** (bundled Python hooks)

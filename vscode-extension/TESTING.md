@@ -93,6 +93,8 @@ grep -c post_tool.py  ~/.claude/settings.json    # → 1
 | 3.4 | Toggle off then on | text + `config.json` `enabled` flips; takes effect on the next prompt | |
 | 3.5 | **Open log** with no log yet | "No log yet…" info | |
 | 3.6 | **Open log** after a prompt | opens `tg-approve.log` in editor | |
+| 3.7 | **Uninstall hooks → Remove hooks only** | our entries gone from `settings.json`; existing hooks kept; `config.json` retained | |
+| 3.8 | **Uninstall hooks → Remove everything** | `~/.claude/hooks/tg-approve` deleted; SecretStorage token cleared; status bar reverts to "setup" | |
 
 ---
 
@@ -161,15 +163,36 @@ This is the real money path. After setup + reload:
 
 ---
 
-## 8. Automated tests (optional, not yet wired)
+## 8. Automated tests (wired up — run these)
 
-The `installer.ts` and `telegram.ts` modules are pure and unit-testable with
-mocked `node:fs` / `https`. Integration tests can use
-[`@vscode/test-electron`](https://github.com/microsoft/vscode-test) to launch a
-real VS Code and assert on commands/config. A harness isn't included in 0.1.0 —
-the manual checklist above is the source of truth for release sign-off. Adding
-`@vscode/test-electron` + a `test/suite/` is the recommended next step before a
-1.0.
+Two suites ship with the extension:
+
+### Unit (`npm run test:unit`) — no VS Code, fast
+Drives the real `installer.ts` against a temp `CLAUDE_CONFIG_DIR` using Node's
+built-in test runner. Covers the riskiest logic:
+- `patchSettings` creates Pre/PostToolUse, **preserves existing hooks**, is
+  **idempotent** (no duplicates on re-run).
+- `unpatchSettings` removes only ours, keeps the rest, prunes empties.
+- `writeConfig` is **chmod 600**; `readConfig` round-trips; `setEnabled` flips.
+- allowlist read/write; `isConfigured` logic.
+
+```bash
+npm run test:unit     # → 9 passing
+```
+
+### Integration (`npm run test:integration`) — real VS Code
+Uses [`@vscode/test-electron`](https://github.com/microsoft/vscode-test) to
+download and launch VS Code, load the extension, and assert it activates and
+registers all commands. Needs a display (use `xvfb-run` on headless Linux CI).
+
+```bash
+npm run test:integration   # downloads VS Code, → 2 passing
+```
+
+Config: [`.vscode-test.mjs`](.vscode-test.mjs). Tests:
+[`src/test/suite/`](src/test/suite/). The manual checklist (§1–§7) still owns the
+UI-flow paths that can't be asserted programmatically (input boxes, toasts,
+keystroke injection).
 
 ---
 
