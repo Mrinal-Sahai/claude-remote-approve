@@ -9,6 +9,7 @@ import fcntl
 import json
 import os
 import subprocess
+import sys
 import time
 import urllib.parse
 import urllib.request
@@ -43,6 +44,18 @@ DEFAULT_CONFIG = {
     # macOS process name VS Code shows up as for UI scripting (Electron app).
     "vscode_process_name": "Electron",
 }
+
+
+# ----------------------------------------------------------------------------
+# run mode: VS Code extension vs CLI
+# ----------------------------------------------------------------------------
+# Claude Code exports CLAUDE_CODE_ENTRYPOINT. The VS Code extension sets it to
+# "claude-vscode"; the terminal CLI sets it to "cli" (and the integrated
+# terminal counts as CLI too). We treat ONLY the explicit vscode value as
+# extension mode, so the proven keystroke-injection path is never taken away
+# from a working VS Code setup; everything else uses the blocking CLI strategy.
+def is_vscode_extension():
+    return os.environ.get("CLAUDE_CODE_ENTRYPOINT", "") == "claude-vscode"
 
 
 # ----------------------------------------------------------------------------
@@ -248,7 +261,15 @@ def count_pending_states():
             try:
                 with open(os.path.join(STATE_DIR, fname)) as f:
                     st = json.load(f)
-                if st.get("status") == "pending" and now - st.get("created", 0) < PROMPT_MAX_AGE_S:
+                if st.get("status") != "pending":
+                    continue
+                # CLI prompts stay pending until their explicit deadline; VS Code
+                # prompts use the short PROMPT_MAX_AGE_S window (unchanged).
+                deadline = st.get("deadline")
+                if deadline is not None:
+                    if now <= deadline:
+                        n += 1
+                elif now - st.get("created", 0) < PROMPT_MAX_AGE_S:
                     n += 1
             except (OSError, ValueError):
                 pass
@@ -368,13 +389,23 @@ def quickpick_open(decision_id=None):
 
 
 def inject_decision(cfg, decision):
-    """Inject a keystroke into the VS Code window to answer the Quick Pick.
+    """Inject a keystroke into the focused window to answer the Quick Pick.
 
-    allow/always -> Return  (selects the highlighted option)
-    deny         -> Escape  (dismisses the Quick Pick = deny)
+    allow/always -> Return/Enter  (selects the highlighted option)
+    deny         -> Escape        (dismisses the Quick Pick = deny)
 
-    Returns True if the keystroke was sent without error.
+    Per-OS backend: macOS uses AppleScript (the proven path, unchanged),
+    Windows uses PowerShell SendKeys, Linux uses xdotool. Returns True if the
+    keystroke was sent without error.
     """
+    if sys.platform == "darwin":
+        return _inject_macos(cfg, decision)
+    if sys.platform == "win32":
+        return _inject_windows(decision)
+    return _inject_linux(decision)
+
+
+def _inject_macos(cfg, decision):
     proc = cfg.get("vscode_process_name", "Electron")
     # Bring VS Code to front so the keystroke lands in the right window.
     activate = f'tell application "System Events" to set frontmost of process "{proc}" to true'
@@ -384,6 +415,45 @@ def inject_decision(cfg, decision):
     ok, out = _osascript(f'tell application "System Events" to {key}')
     log(f"inject_decision({decision}) -> ok={ok} out={out!r}")
     return ok
+
+
+def _inject_windows(decision):
+    """Windows: SendKeys into the foreground window via PowerShell (no deps)."""
+    key = "{ESC}" if decision == "deny" else "{ENTER}"
+    ps = (
+        "Add-Type -AssemblyName System.Windows.Forms; "
+        f"[System.Windows.Forms.SendKeys]::SendWait('{key}')"
+    )
+    try:
+        out = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
+            capture_output=True, text=True, timeout=10,
+        )
+        ok = out.returncode == 0
+        log(f"inject_decision({decision}) [win] -> ok={ok} err={out.stderr.strip()!r}")
+        return ok
+    except Exception as e:  # noqa: BLE001
+        log(f"inject_decision({decision}) [win] failed: {e}")
+        return False
+
+
+def _inject_linux(decision):
+    """Linux/X11: send the key with xdotool. Requires `xdotool` on PATH."""
+    key = "Escape" if decision == "deny" else "Return"
+    try:
+        out = subprocess.run(
+            ["xdotool", "key", "--clearmodifiers", key],
+            capture_output=True, text=True, timeout=10,
+        )
+        ok = out.returncode == 0
+        log(f"inject_decision({decision}) [linux] -> ok={ok} err={out.stderr.strip()!r}")
+        return ok
+    except FileNotFoundError:
+        log("inject_decision [linux]: xdotool not installed (apt/dnf install xdotool)")
+        return False
+    except Exception as e:  # noqa: BLE001
+        log(f"inject_decision({decision}) [linux] failed: {e}")
+        return False
 
 
 # ----------------------------------------------------------------------------
@@ -417,7 +487,14 @@ def route_phone_decision(decision_id, action):
     st = read_state(decision_id)
     if st.get("status") != "pending":
         return False
-    if time.time() - st.get("created", 0) > PROMPT_MAX_AGE_S:
+    # CLI blocking prompts carry an explicit `deadline`: the hook is still alive
+    # and answerable until then. VS Code prompts have no `deadline` field and use
+    # the short PROMPT_MAX_AGE_S window tied to the Quick Pick's lifetime.
+    deadline = st.get("deadline")
+    if deadline is not None:
+        if time.time() > deadline:
+            return False
+    elif time.time() - st.get("created", 0) > PROMPT_MAX_AGE_S:
         return False
     st["phone_decision"] = action
     st["phone_decided_at"] = time.time()

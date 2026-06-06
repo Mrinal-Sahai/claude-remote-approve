@@ -74,6 +74,55 @@ still open. Instead we track the prompt's lifecycle in a **state file** (§5) an
 only ever inject while that file says `status == "pending"` and is fresh
 (< 90 s). Fail-closed: if we're unsure, we don't inject.
 
+### 3.1 Cross-platform injection
+
+`inject_decision()` dispatches on `sys.platform`, but the keystrokes are the
+same everywhere — `Return` to accept, `Escape` to deny:
+
+| OS | Backend | Notes |
+|----|---------|-------|
+| macOS | `osascript` → System Events | Needs Accessibility permission. Brings VS Code frontmost first. |
+| Windows | PowerShell `[System.Windows.Forms.SendKeys]::SendWait` | No dependency; sends to the foreground window. |
+| Linux | `xdotool key --clearmodifiers` | X11; requires `xdotool` on PATH. |
+
+The macOS branch is unchanged from the original single-platform implementation;
+Windows/Linux are additive and never touch the macOS path.
+
+### 3b. Two run modes: injection vs blocking
+
+Injection only makes sense when there's a **VS Code Quick Pick** to drive. In a
+plain terminal there's a y/N prompt instead, which AppleScript/SendKeys/xdotool
+can't reliably answer. So `approve.py` chooses a strategy up front:
+
+```
+mode = (CLAUDE_CODE_ENTRYPOINT == "claude-vscode") ? "inject" : "block"
+```
+
+This is deliberately **fail-safe toward blocking**: only the exact string
+`claude-vscode` takes the injection path. Every other entrypoint — the terminal
+CLI, the integrated terminal, a JetBrains plugin, future frontends — uses the
+blocking path, which needs no UI at all.
+
+**Blocking mode** (`handle_cli`) is simpler than the both-live design:
+
+1. Tag the state file with an explicit `deadline` (now + 20 s).
+2. Ensure the dispatcher is running; send the Telegram message.
+3. Poll our own state file until `phone_decision` is set, then `emit()` the
+   decision **directly** as the hook's stdout — Claude proceeds with no prompt.
+4. If the deadline passes, `emit("ask")` so the normal terminal prompt takes
+   over. Nothing is auto-approved on timeout.
+
+The block is capped at 20 s and the PreToolUse hook is registered with a 35 s
+`timeout` so Claude never kills it mid-wait. Because the hook *is* still alive
+the whole time, the dispatcher's stale-prompt guard had to learn about the
+`deadline` field: `route_phone_decision()` and `count_pending_states()` honor an
+explicit `deadline` when present, and otherwise fall back to the original 90 s
+window — so VS Code prompts (no `deadline` key) behave exactly as before.
+
+**Instant disable.** `approve.py` checks `TG_APPROVE_OFF` before anything else
+and exits `0` (normal local prompt) if it's set — a zero-cost per-shell kill
+switch for CLI use, independent of the persistent `enabled` config flag.
+
 ---
 
 ## 4. The architecture, and the bug that forced the rewrite

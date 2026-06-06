@@ -63,8 +63,14 @@ export function installHooks(extensionPath: string): void {
 
 interface HookEntry {
   matcher?: string;
-  hooks?: { type: string; command: string }[];
+  hooks?: { type: string; command: string; timeout?: number }[];
 }
+
+// CLI mode blocks the PreToolUse hook for up to 20s waiting for a phone tap,
+// then falls back to the native prompt. Register a slightly larger hook timeout
+// so the block is never cut short. In VS Code extension mode the hook returns
+// instantly, so this is inert there.
+const PRETOOL_HOOK_TIMEOUT_S = 35;
 
 /**
  * Register Pre/PostToolUse hooks in settings.json without clobbering existing
@@ -82,18 +88,22 @@ export function patchSettings(python: string): string[] {
   settings.hooks = settings.hooks || {};
   const added: string[] = [];
 
-  const ensure = (event: string, script: string) => {
+  const ensure = (event: string, script: string, timeout?: number) => {
     const cmd = `${python} ${path.join(hookDir(), script)}`;
     const entries: HookEntry[] = (settings.hooks[event] = settings.hooks[event] || []);
     const already = entries.some((e) => (e.hooks || []).some((h) => (h.command || "").includes(script)));
     if (already) {
       return;
     }
-    entries.push({ matcher: MATCHER, hooks: [{ type: "command", command: cmd }] });
+    const hook: { type: string; command: string; timeout?: number } = { type: "command", command: cmd };
+    if (timeout) {
+      hook.timeout = timeout;
+    }
+    entries.push({ matcher: MATCHER, hooks: [hook] });
     added.push(`${event} → ${script}`);
   };
 
-  ensure("PreToolUse", "approve.py");
+  ensure("PreToolUse", "approve.py", PRETOOL_HOOK_TIMEOUT_S);
   ensure("PostToolUse", "post_tool.py");
 
   fs.mkdirSync(path.dirname(settingsPath), { recursive: true });

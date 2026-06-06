@@ -36,10 +36,11 @@ auto-approved. If you ignore the phone, you just answer in the editor as usual.
 
 - **Claude Code** (the CLI / VS Code extension).
 - **Python 3.8+** (uses stdlib only).
-- **macOS** for the keystroke-injection path (phone → editor). On Linux/Windows
-  the phone buttons still record your decision and the editor prompt is
-  answered there; auto-injection is macOS-only today (see *Platform support*).
 - A **Telegram bot token** (free, from [@BotFather](https://t.me/BotFather)).
+- For the **VS Code panel** keystroke path: macOS needs Accessibility
+  permission, Linux needs `xdotool`, Windows uses built-in PowerShell. The
+  **CLI** path needs none of this — it works everywhere out of the box
+  (see *Platform support*).
 
 ---
 
@@ -110,21 +111,41 @@ Delete entries any time to start prompting for them again.
 
 ### Turning it off
 
-Set `"enabled": false` in `~/.claude/hooks/tg-approve/config.json` (or just
-remove the hooks from `settings.json`). With it off, Claude Code prompts only in
-the editor as it did before.
+**Instantly, for one shell session (CLI):** export an environment variable in
+the terminal that runs `claude` — the hook steps aside at once and you get
+normal local prompts:
+
+```bash
+export TG_APPROVE_OFF=1     # off for this session
+unset TG_APPROVE_OFF        # back on
+```
+
+**Persistently (all sessions):** set `"enabled": false` in
+`~/.claude/hooks/tg-approve/config.json` (or remove the hooks from
+`settings.json`, or use the **Disable** action in the VS Code status bar). With
+it off, Claude Code prompts only in the editor as it did before.
 
 ---
 
 ## How it works (short version)
 
-Three small processes, coordinated through state files on disk:
+`approve.py` picks one of two strategies based on `CLAUDE_CODE_ENTRYPOINT`:
+
+- **VS Code extension** (`claude-vscode`) → the "both-live" path below: return
+  `ask` instantly so the native prompt appears, and race it from the phone via a
+  detached watcher that injects a keystroke.
+- **CLI** (anything else) → **block** in the hook for up to 20 s, send the
+  Telegram message, and return the phone's decision directly. No native prompt,
+  no keystroke injection — so it's identical on every OS.
+
+The VS Code "both-live" path uses three small processes, coordinated through
+state files on disk:
 
 | Piece | Role |
 |-------|------|
-| `approve.py` | `PreToolUse` hook. Writes a *pending* state file, spawns the watcher, and returns `ask` so the editor prompt appears immediately. |
-| `dispatcher.py` | **One** per machine. The *only* process that polls Telegram. Routes each tap into the matching prompt's state file. Idle-exits when there's nothing pending. |
-| `watcher.py` | One per prompt. Sends the Telegram message, then watches its own state file. On a phone tap it injects the keystroke; if you answered in the editor it just stops. |
+| `approve.py` | `PreToolUse` hook. Writes a *pending* state file, spawns the watcher, and returns `ask` so the editor prompt appears immediately. (In CLI mode it blocks and decides directly instead.) |
+| `dispatcher.py` | **One** per machine. The *only* process that polls Telegram. Routes each tap into the matching prompt's state file. Idle-exits when there's nothing pending. Used by both modes. |
+| `watcher.py` | One per prompt (VS Code mode). Sends the Telegram message, then watches its own state file. On a phone tap it injects the keystroke; if you answered in the editor it just stops. |
 | `post_tool.py` | `PostToolUse` hook. Marks a prompt "answered" when the tool actually runs, so the watcher knows the editor won. |
 
 A single dispatcher (instead of every watcher polling) is what makes it safe
@@ -179,14 +200,24 @@ Logs live at `~/.claude/hooks/tg-approve/tg-approve.log`.
 
 ## Platform support
 
-| Platform | Phone notification | Tap → editor injection |
-|----------|:-:|:-:|
-| macOS | ✅ | ✅ (osascript / Accessibility) |
-| Linux | ✅ | ⚠️ not yet (answer in editor) |
-| Windows | ✅ | ⚠️ not yet (answer in editor) |
+Two run modes, detected automatically via `CLAUDE_CODE_ENTRYPOINT`:
 
-Contributions for Linux (`xdotool`/`ydotool`) and Windows (`SendKeys`)
-injection are welcome.
+- **VS Code extension panel** — your tap injects a keystroke into the native
+  Quick Pick. Per-OS backend (below).
+- **Terminal CLI** (any terminal, including VS Code's integrated one and
+  JetBrains) — the hook **blocks up to 20 s** waiting for your tap, then returns
+  the decision directly. No keystroke injection, so **no per-OS dependency** —
+  works the same everywhere.
+
+| Platform | Phone notification | CLI mode (blocking) | VS Code panel (injection) |
+|----------|:-:|:-:|:-:|
+| macOS | ✅ | ✅ | ✅ AppleScript (needs Accessibility) |
+| Linux | ✅ | ✅ | ✅ `xdotool` (X11) |
+| Windows | ✅ | ✅ | ✅ PowerShell `SendKeys` (built in) |
+
+The CLI path is fully hands-free on every OS today. For the VS Code panel,
+Linux needs `xdotool` installed (`apt install xdotool`) and macOS needs
+Accessibility permission.
 
 ---
 

@@ -1,8 +1,8 @@
 {
   "name": "claude-remote-approve",
   "displayName": "Claude Remote Approve (Telegram)",
-  "description": "Approve Claude Code permission prompts from your phone over Telegram.",
-  "version": "0.1.0",
+  "description": "Approve Claude Code permission prompts from your phone over Telegram — Allow/Deny/Always buttons. Hands-free in both the VS Code panel and the CLI, on macOS, Windows & Linux.",
+  "version": "0.2.0",
   "publisher": "MrinalSahai",
   "license": "MIT",
   "repository": {
@@ -20,7 +20,13 @@
     "claude code",
     "telegram",
     "approval",
-    "remote"
+    "remote",
+    "cli",
+    "hands-free",
+    "permissions",
+    "agentic",
+    "windows",
+    "linux"
   ],
   "icon": "icon.png",
   "activationEvents": [

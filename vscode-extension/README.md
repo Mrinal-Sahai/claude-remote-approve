@@ -2,6 +2,8 @@
 
 Approve **Claude Code** permission prompts from your phone over Telegram — with Allow, Deny, and Always buttons.
 
+**Hands-free in both the VS Code panel and the terminal CLI, on macOS, Windows & Linux.**
+
 ![Status bar showing Telegram: on](https://raw.githubusercontent.com/Mrinal-Sahai/claude-remote-approve/main/docs/statusbar.png)
 
 ---
@@ -9,6 +11,13 @@ Approve **Claude Code** permission prompts from your phone over Telegram — wit
 ## How it works
 
 When Claude Code wants to run a shell command, edit a file, or call a web endpoint, it pauses and sends a Telegram message to your phone. You tap **Allow**, **Deny**, or **Always** (auto-approve this command forever) — and Claude continues.
+
+It works two ways automatically, depending on how you run Claude Code:
+
+- **VS Code extension panel** — your tap injects a keystroke that answers the native prompt (macOS / Windows / Linux backends).
+- **Terminal CLI** — the hook simply waits for your tap (up to 20s) and returns the decision directly, so no keystroke injection is needed and there's nothing to set up per-OS.
+
+Either way: one tap on your phone, Claude continues, you never sat back down.
 
 ---
 
@@ -83,32 +92,51 @@ Click the status bar item for quick actions:
 |-------------|-------|
 | **Claude Code** | Must be installed |
 | **Python 3.8+** | Must be on your `PATH` |
-| **macOS** (for full experience) | Phone-tap → keystroke auto-inject uses AppleScript (`osascript`). macOS only. See platform table below. |
-| **Accessibility permission** (macOS) | Grant VS Code in *System Settings → Privacy & Security → Accessibility* for auto-inject to work. |
+| **Keystroke backend** | VS Code extension mode injects your tap as a keystroke: macOS uses AppleScript (needs Accessibility), Windows uses PowerShell, Linux uses `xdotool`. CLI mode needs none of this. |
 
 ### Platform & Claude Code mode support
 
-There are two ways to run Claude Code: the **VS Code extension** (panel inside VS Code) and the **CLI** (`claude` in a terminal). They behave differently with this extension.
+There are two ways to run Claude Code: the **VS Code extension** (panel inside VS Code) and the **CLI** (`claude` in a terminal). The extension detects which one you're using (via `CLAUDE_CODE_ENTRYPOINT`) and picks the right strategy automatically — both are fully hands-free.
 
-| Feature | VS Code extension | CLI — integrated terminal | CLI — external terminal |
-|---------|:-----------------:|:-------------------------:|:-----------------------:|
-| Phone notification (Allow / Deny / Always) | ✅ | ✅ | ✅ |
-| Tap auto-injects answer — no editor interaction needed | ✅ | ⚠️ Unreliable | ❌ |
-| Setup wizard, status bar, config | ✅ | ✅ | ✅ |
-| Allowlist ("Always") rules | ✅ | ✅ | ✅ |
+| Mode | How your tap is applied | Result |
+|------|-------------------------|--------|
+| **VS Code extension** | Native Quick Pick appears instantly; your tap injects a keystroke that answers it | One tap, hands-free |
+| **CLI (any terminal)** | The hook **blocks** and waits for your tap, then returns the decision directly — no terminal prompt is shown | One tap, hands-free |
 
-And by operating system:
+The CLI "blocking" strategy means Claude simply pauses until you tap — no keystroke injection involved, so it works identically on **macOS, Windows, and Linux** with no extra dependency.
 
-| Feature | macOS | Windows | Linux |
-|---------|:-----:|:-------:|:-----:|
-| Phone notification | ✅ | ✅ | ✅ |
-| Tap auto-injects answer | ✅ | ❌ | ❌ |
+#### Keystroke injection (VS Code extension mode only)
 
-**VS Code extension mode (recommended):** full experience. Permission prompt appears as a VS Code Quick Pick; tapping Allow/Deny on your phone auto-dismisses it via AppleScript.
+| OS | Backend | Notes |
+|----|---------|-------|
+| **macOS** | AppleScript (`osascript`) | Needs Accessibility permission |
+| **Windows** | PowerShell `SendKeys` | Built in — no extra install. Sends to the focused window. |
+| **Linux** | `xdotool` | Install via `apt install xdotool` / `dnf install xdotool` (X11). |
 
-**CLI in external terminal:** notification arrives on your phone, you tap — but the terminal prompt (y/N) is not auto-answered. You still need to type in the terminal. Windows/Linux CLI support is a planned improvement.
+> CLI mode does **not** use injection, so it needs no Accessibility permission and no `xdotool` — it works everywhere out of the box.
 
-**CLI in VS Code integrated terminal:** somewhere in between — behaviour depends on which window has focus. Not officially supported.
+#### CLI blocking window
+
+In CLI mode the hook waits up to **20 seconds** for your tap, then falls back to the normal terminal prompt (you can still answer there). Fresh installs register a matching Claude Code hook timeout so the block isn't cut short — if you upgraded from an older version, re-run **"Telegram Approve: Setup"** to apply it.
+
+#### Disable it instantly on the CLI
+
+Set an environment variable in the shell that runs `claude` — the hook steps aside immediately and you get normal local prompts, no file edits or restart needed:
+
+```bash
+export TG_APPROVE_OFF=1     # disable for this shell session
+claude                      # runs with normal local prompts
+
+unset TG_APPROVE_OFF        # re-enable
+```
+
+To disable **permanently** (all sessions, both CLI and the VS Code panel), flip the config flag:
+
+```bash
+python3 -c "import json,os;p=os.path.expanduser('~/.claude/hooks/tg-approve/config.json');c=json.load(open(p));c['enabled']=False;json.dump(c,open(p,'w'),indent=2);print('tg-approve disabled')"
+```
+
+Set `enabled` back to `true` (or use the status bar **Enable** action in VS Code) to turn it on again.
 
 ---
 
@@ -134,9 +162,10 @@ This extension is intentionally minimal. Here is every permission it needs and e
 
 | Permission | Why | How to grant |
 |------------|-----|--------------|
-| **macOS Accessibility** | Auto-injects keystrokes when you tap Allow/Deny on your phone. Without this, you still get the notification but must manually confirm in the editor. | *System Settings → Privacy & Security → Accessibility → VS Code (Electron) → toggle on* |
+| **macOS Accessibility** (VS Code extension mode only) | Lets the keystroke backend answer the Quick Pick when you tap on your phone. | *System Settings → Privacy & Security → Accessibility → VS Code (Electron) → toggle on* |
+| **`xdotool`** (Linux, VS Code extension mode only) | Same keystroke backend on Linux/X11. | `sudo apt install xdotool` or `sudo dnf install xdotool` |
 
-> macOS is the only platform where Accessibility is needed. On other platforms, approvals still arrive on your phone — you just confirm in the editor manually.
+> These are only needed for keystroke injection in **VS Code extension mode**. Windows uses built-in PowerShell (nothing to install). **CLI mode needs none of them** — it waits for your tap and answers directly, on every OS.
 
 ### Network access
 
