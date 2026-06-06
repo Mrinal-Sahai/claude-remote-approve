@@ -3,7 +3,7 @@
   "displayName": "Claude Remote Approve (Telegram)",
   "description": "Approve Claude Code permission prompts from your phone over Telegram.",
   "version": "0.1.0",
-  "publisher": "Mrinal_Sahai",
+  "publisher": "MrinalSahai",
   "license": "MIT",
   "repository": {
     "type": "git",
