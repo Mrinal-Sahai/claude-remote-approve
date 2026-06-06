@@ -83,8 +83,32 @@ Click the status bar item for quick actions:
 |-------------|-------|
 | **Claude Code** | Must be installed |
 | **Python 3.8+** | Must be on your `PATH` |
-| **macOS** | Phone-tap → auto-inject keystroke requires macOS. Notifications work on all platforms; auto-inject is macOS-only. |
-| **Accessibility permission** | Grant VS Code in *System Settings → Privacy & Security → Accessibility* for auto-inject to work. |
+| **macOS** (for full experience) | Phone-tap → keystroke auto-inject uses AppleScript (`osascript`). macOS only. See platform table below. |
+| **Accessibility permission** (macOS) | Grant VS Code in *System Settings → Privacy & Security → Accessibility* for auto-inject to work. |
+
+### Platform & Claude Code mode support
+
+There are two ways to run Claude Code: the **VS Code extension** (panel inside VS Code) and the **CLI** (`claude` in a terminal). They behave differently with this extension.
+
+| Feature | VS Code extension | CLI — integrated terminal | CLI — external terminal |
+|---------|:-----------------:|:-------------------------:|:-----------------------:|
+| Phone notification (Allow / Deny / Always) | ✅ | ✅ | ✅ |
+| Tap auto-injects answer — no editor interaction needed | ✅ | ⚠️ Unreliable | ❌ |
+| Setup wizard, status bar, config | ✅ | ✅ | ✅ |
+| Allowlist ("Always") rules | ✅ | ✅ | ✅ |
+
+And by operating system:
+
+| Feature | macOS | Windows | Linux |
+|---------|:-----:|:-------:|:-----:|
+| Phone notification | ✅ | ✅ | ✅ |
+| Tap auto-injects answer | ✅ | ❌ | ❌ |
+
+**VS Code extension mode (recommended):** full experience. Permission prompt appears as a VS Code Quick Pick; tapping Allow/Deny on your phone auto-dismisses it via AppleScript.
+
+**CLI in external terminal:** notification arrives on your phone, you tap — but the terminal prompt (y/N) is not auto-answered. You still need to type in the terminal. Windows/Linux CLI support is a planned improvement.
+
+**CLI in VS Code integrated terminal:** somewhere in between — behaviour depends on which window has focus. Not officially supported.
 
 ---
 
