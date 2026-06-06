@@ -14,6 +14,7 @@ const FILES = [
   "post_tool.py",
   "tg_common.py",
   "tg_setup.py",
+  "detect_chat_id.py",
 ];
 
 fs.mkdirSync(dst, { recursive: true });

@@ -5,7 +5,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { execFileSync } from "node:child_process";
 
-const HOOK_FILES = ["approve.py", "dispatcher.py", "watcher.py", "post_tool.py", "tg_common.py", "tg_setup.py"];
+const HOOK_FILES = ["approve.py", "dispatcher.py", "watcher.py", "post_tool.py", "tg_common.py", "tg_setup.py", "detect_chat_id.py"];
 const MATCHER = "Bash|Write|Edit|MultiEdit|NotebookEdit|WebFetch";
 
 export function claudeDir(): string {

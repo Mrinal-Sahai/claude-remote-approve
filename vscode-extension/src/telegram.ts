@@ -1,6 +1,6 @@
 // Minimal Telegram Bot API client over Node's https (no third-party deps).
-import * as https from "https";
-import { URLSearchParams } from "url";
+import * as https from "node:https";
+import { URLSearchParams } from "node:url";
 
 export interface TgResponse<T> {
   ok: boolean;
@@ -8,7 +8,12 @@ export interface TgResponse<T> {
   description?: string;
 }
 
-function call<T>(token: string, method: string, params: Record<string, string | number>): Promise<TgResponse<T>> {
+function call<T>(
+  token: string,
+  method: string,
+  params: Record<string, string | number>,
+  httpTimeoutSeconds = 20
+): Promise<TgResponse<T>> {
   const body = new URLSearchParams(
     Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)]))
   ).toString();
@@ -23,7 +28,7 @@ function call<T>(token: string, method: string, params: Record<string, string | 
           "Content-Type": "application/x-www-form-urlencoded",
           "Content-Length": Buffer.byteLength(body),
         },
-        timeout: 20000,
+        timeout: httpTimeoutSeconds * 1000,
       },
       (res) => {
         let data = "";
@@ -66,11 +71,35 @@ interface Update {
 }
 
 /**
- * Return the chat id of the most recent message sent to the bot, or null if
- * none yet. Used during onboarding to learn the user's chat id.
+ * Wait up to `waitSeconds` for the user to send the bot any message, then
+ * return their chat id. Uses a long-poll so it catches a message sent *during*
+ * the wait window — important when the bot's update queue has already been
+ * consumed by a running dispatcher (offset advanced, old messages gone).
  */
-export async function detectChatId(token: string): Promise<string | null> {
-  const res = await call<Update[]>(token, "getUpdates", { offset: 0, timeout: 0 });
+export async function detectChatId(
+  token: string,
+  waitSeconds = 20
+): Promise<string | null> {
+  // First try an instant poll — catches existing unread messages.
+  const instant = await call<Update[]>(token, "getUpdates", {
+    offset: 0,
+    timeout: 0,
+  });
+  if (instant.ok && instant.result) {
+    for (const upd of instant.result) {
+      const msg = upd.message || upd.edited_message;
+      const id = msg?.chat?.id;
+      if (id !== undefined && id !== null) {
+        return String(id);
+      }
+    }
+  }
+  // Nothing in the queue — long-poll so we catch the message the user is
+  // about to send while the "I've sent it" dialog is showing.
+  const res = await call<Update[]>(token, "getUpdates", {
+    offset: 0,
+    timeout: waitSeconds,
+  }, waitSeconds + 10);
   if (!res.ok || !res.result) {
     return null;
   }
