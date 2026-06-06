@@ -102,12 +102,42 @@ Copy the number next to **"Your user ID"** and paste it into the setup input box
 
 ---
 
-## What changes on your machine
+## Permissions & system footprint
+
+This extension is intentionally minimal. Here is every permission it needs and every file it touches — nothing hidden.
+
+### Permissions required
+
+| Permission | Why | How to grant |
+|------------|-----|--------------|
+| **macOS Accessibility** | Auto-injects keystrokes when you tap Allow/Deny on your phone. Without this, you still get the notification but must manually confirm in the editor. | *System Settings → Privacy & Security → Accessibility → VS Code (Electron) → toggle on* |
+
+> macOS is the only platform where Accessibility is needed. On other platforms, approvals still arrive on your phone — you just confirm in the editor manually.
+
+### Network access
+
+| Destination | What |
+|-------------|------|
+| `api.telegram.org` (HTTPS, outbound only) | Sends approval requests to your phone; receives your tap response. **No other server is contacted. No analytics. No telemetry.** |
+
+### What is stored and where
+
+| What | Where | Format |
+|------|-------|--------|
+| Bot token | VS Code Secret Storage (encrypted, never on disk in plaintext) | VS Code built-in secrets API |
+| Chat ID + config | `~/.claude/hooks/tg-approve/config.json` | `chmod 600` — readable only by you |
+| Hook scripts | `~/.claude/hooks/tg-approve/*.py` | Plain Python, readable, deletable |
+| Activity log | `~/.claude/hooks/tg-approve/tg-approve.log` | Plain text, rotated automatically |
+| Allow-list rules | `~/.claude/hooks/tg-approve/allowlist.json` | Plain JSON |
+
+### What changes on your machine
 
 | Path | What |
 |------|------|
 | `~/.claude/hooks/tg-approve/` | Hook scripts + `config.json` (chmod 600) |
 | `~/.claude/settings.json` | `PreToolUse` + `PostToolUse` entries added (existing hooks preserved) |
+
+**Uninstall cleanly:** run *"Telegram Approve: Uninstall hooks"* from the Command Palette. It removes our entries from `settings.json` and optionally deletes all scripts, config, and logs.
 
 ---
 
