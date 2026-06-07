@@ -33,7 +33,8 @@ echo "==> Claude config dir: $CLAUDE_DIR"
 # ---------------------------------------------------------------------------
 mkdir -p "$HOOK_DIR"
 cp "$SRC_DIR"/approve.py "$SRC_DIR"/dispatcher.py "$SRC_DIR"/watcher.py \
-   "$SRC_DIR"/post_tool.py "$SRC_DIR"/tg_common.py "$SRC_DIR"/tg_setup.py "$HOOK_DIR/"
+   "$SRC_DIR"/post_tool.py "$SRC_DIR"/tg_common.py "$SRC_DIR"/tg_setup.py \
+   "$SRC_DIR"/detect_chat_id.py "$HOOK_DIR/"
 chmod +x "$HOOK_DIR"/*.py
 echo "==> Installed hook scripts to $HOOK_DIR"
 
@@ -46,7 +47,7 @@ import json, os
 py = os.environ["PY"]
 hook_dir = os.environ["HOOK_DIR"]
 path = os.environ["SETTINGS"]
-matcher = "Bash|Write|Edit|MultiEdit|NotebookEdit|WebFetch"
+matcher = "Bash|PowerShell|Write|Edit|MultiEdit|NotebookEdit|WebFetch"
 
 try:
     with open(path) as f:
@@ -56,20 +57,29 @@ except (OSError, ValueError):
 
 hooks = settings.setdefault("hooks", {})
 
-def ensure(event, script):
-    cmd = f"{py} {os.path.join(hook_dir, script)}"
+def ensure(event, script, timeout=None):
+    # Quote both paths so spaces in the path (e.g. a Windows username) don't
+    # truncate the command. Harmless on macOS/Linux.
+    cmd = f'"{py}" "{os.path.join(hook_dir, script)}"'
     entries = hooks.setdefault(event, [])
     # already registered? (match on the script filename anywhere in the command)
     for entry in entries:
         for h in entry.get("hooks", []):
             if script in h.get("command", ""):
+                # Upgrade matcher and command in place if stale.
+                entry["matcher"] = matcher
+                h["command"] = cmd
+                if timeout:
+                    h["timeout"] = timeout
                 return False
-    entries.append({"matcher": matcher,
-                    "hooks": [{"type": "command", "command": cmd}]})
+    hook = {"type": "command", "command": cmd}
+    if timeout:
+        hook["timeout"] = timeout
+    entries.append({"matcher": matcher, "hooks": [hook]})
     return True
 
 added = []
-if ensure("PreToolUse", "approve.py"):
+if ensure("PreToolUse", "approve.py", timeout=35):
     added.append("PreToolUse->approve.py")
 if ensure("PostToolUse", "post_tool.py"):
     added.append("PostToolUse->post_tool.py")
