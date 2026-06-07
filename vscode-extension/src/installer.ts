@@ -6,7 +6,10 @@ import * as path from "node:path";
 import { execFileSync } from "node:child_process";
 
 const HOOK_FILES = ["approve.py", "dispatcher.py", "watcher.py", "post_tool.py", "tg_common.py", "tg_setup.py", "detect_chat_id.py"];
-const MATCHER = "Bash|Write|Edit|MultiEdit|NotebookEdit|WebFetch";
+// `PowerShell` is a distinct tool on native Windows (separate from `Bash`,
+// which routes through Git Bash). List both so shell commands are gated on
+// every OS. Bash also covers Linux/macOS/WSL shells.
+const MATCHER = "Bash|PowerShell|Write|Edit|MultiEdit|NotebookEdit|WebFetch";
 
 export function claudeDir(): string {
   return process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), ".claude");
@@ -91,8 +94,15 @@ export function patchSettings(python: string): string[] {
   const ensure = (event: string, script: string, timeout?: number) => {
     const cmd = `${python} ${path.join(hookDir(), script)}`;
     const entries: HookEntry[] = (settings.hooks[event] = settings.hooks[event] || []);
-    const already = entries.some((e) => (e.hooks || []).some((h) => (h.command || "").includes(script)));
-    if (already) {
+    const existing = entries.find((e) => (e.hooks || []).some((h) => (h.command || "").includes(script)));
+    if (existing) {
+      // Already registered: upgrade an out-of-date matcher in place (e.g. older
+      // installs missing `PowerShell`). Only our own entry, only the matcher
+      // field — the command is untouched, so VS Code behaviour is unchanged.
+      if (existing.matcher !== MATCHER) {
+        existing.matcher = MATCHER;
+        added.push(`${event} → ${script} (matcher updated)`);
+      }
       return;
     }
     const hook: { type: string; command: string; timeout?: number } = { type: "command", command: cmd };

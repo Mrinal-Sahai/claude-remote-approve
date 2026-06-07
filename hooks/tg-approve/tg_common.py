@@ -109,10 +109,11 @@ def add_allow_rule(rule):
 
 def allow_rule_for(tool_name, tool_input):
     """The 'always' rule string we'd persist for this call."""
-    if tool_name == "Bash":
-        cmd = (tool_input or {}).get("command", "").strip()
+    if tool_name in ("Bash", "PowerShell"):
+        ti = tool_input or {}
+        cmd = (ti.get("command") or ti.get("script") or "").strip()
         first = cmd.split()[0] if cmd else ""
-        return f"Bash:{first}"
+        return f"{tool_name}:{first}"
     return f"{tool_name}:*"
 
 
@@ -125,9 +126,9 @@ def is_allowlisted(tool_name, tool_input):
 # ----------------------------------------------------------------------------
 def summarize(tool_name, tool_input):
     ti = tool_input or {}
-    if tool_name == "Bash":
-        cmd = ti.get("command", "")
-        return f"Bash: {cmd}"[:300]
+    if tool_name in ("Bash", "PowerShell"):
+        cmd = ti.get("command") or ti.get("script") or ""
+        return f"{tool_name}: {cmd}"[:300]
     if tool_name in ("Write", "Edit", "MultiEdit", "NotebookEdit"):
         return f"{tool_name}: {ti.get('file_path', ti.get('notebook_path', '?'))}"
     if tool_name == "WebFetch":

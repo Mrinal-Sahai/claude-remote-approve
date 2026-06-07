@@ -108,6 +108,8 @@ There are two ways to run Claude Code: the **VS Code extension** (panel inside V
 
 The CLI "blocking" strategy means Claude simply pauses until you tap — no keystroke injection involved, so it works identically on **macOS, Windows, and Linux** with no extra dependency.
 
+**Commands gated:** `Bash`, `PowerShell` (native Windows), `Write`, `Edit`, `MultiEdit`, `NotebookEdit`, and `WebFetch`. On Windows, Claude Code's `PowerShell` tool is a separate tool from `Bash` — both are covered, so shell commands trigger a notification regardless of which shell Claude uses.
+
 #### Keystroke injection (VS Code extension mode only)
 
 | OS | Backend | Notes |

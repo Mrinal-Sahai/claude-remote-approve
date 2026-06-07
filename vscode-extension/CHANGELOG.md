@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.2
+
+- **Windows PowerShell coverage.** Native Windows exposes a separate
+  `PowerShell` tool (distinct from `Bash`, which routes through Git Bash).
+  The hook matcher now includes `PowerShell`, so PowerShell commands are gated
+  and sent to your phone like any other command. Re-running setup upgrades the
+  matcher on existing installs in place (only the matcher, command untouched).
+- `summarize()` and the "Always" allowlist now understand `PowerShell` calls
+  (shown as `PowerShell: <command>`, allow-rule `PowerShell:<firstword>`).
+
 ## 0.2.1
 
 - Setup wizard now offers a one-click **"Open @BotFather"** button before the
