@@ -24,7 +24,10 @@ moments. We use two:
   that "the tool actually ran, so the user must have approved it in the editor."
 
 Both are registered in `~/.claude/settings.json` with a `matcher` selecting
-which tools they fire for (`Bash|Write|Edit|MultiEdit|NotebookEdit|WebFetch`).
+which tools they fire for (`Bash|PowerShell|Write|Edit|MultiEdit|NotebookEdit|WebFetch`).
+`PowerShell` is a distinct tool name on native Windows (separate from `Bash`,
+which routes through Git Bash) — listing both ensures shell commands are gated
+on every OS.
 
 The key constraint: **a hook is a short-lived process.** It can't sit and wait
 for a phone tap — that would block Claude. So the real work happens in a
@@ -255,7 +258,7 @@ the tool is widely used or driven hard:
 | File | Lines of responsibility |
 |------|--------------------------|
 | `tg_common.py` | Config/allowlist IO, Telegram API wrappers, the rate-limit ledger, state-file IO + `route_phone_decision`, `inject_decision`, `quickpick_open`. |
-| `approve.py` | PreToolUse: allowlist short-circuit, write state, spawn watcher, emit `ask`. |
+| `approve.py` | PreToolUse: allowlist short-circuit, write state; VS Code → spawn watcher + emit `ask`; CLI → `handle_cli` (block up to 20 s, emit decision directly). |
 | `dispatcher.py` | The singleton poller: long-poll `getUpdates`, auth-check, route taps, idle-exit. |
 | `watcher.py` | Per-prompt: rate-gated send, poll-less wait on own state file, keystroke injection, message edits, cleanup. |
 | `post_tool.py` | PostToolUse: flip matching pending prompt to `answered`. |
@@ -265,13 +268,12 @@ the tool is widely used or driven hard:
 
 ## 8. Known limitations / future work
 
-- **Injection is macOS-only.** Linux (`xdotool`/`ydotool`) and Windows
-  (`SendKeys`) ports are wanted. The notification + routing layers are already
-  cross-platform.
 - **One machine per bot token.** A shared backend (or webhooks with a tiny
   relay) would lift this, at the cost of running a server.
 - **Digest is per-machine, not a true cross-prompt batch.** Under extreme
   bursts you get one digest + editor-only prompts rather than N individual
   buttoned messages. That's a deliberate trade to stay under the rate cap.
+- **Linux injection requires X11.** `xdotool` doesn't work on Wayland. CLI
+  blocking mode (which needs no injection) is the recommended path on Wayland.
 - **No end-to-end encryption beyond Telegram's.** Approvals traverse Telegram's
   servers. Don't use this for prompts whose *summary text* is itself sensitive.
