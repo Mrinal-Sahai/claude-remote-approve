@@ -51,6 +51,8 @@ The setup wizard will ask you to send your bot a message so it can learn your ch
 
 After setup, your phone receives a confirmation message. Reload the VS Code window when prompted, and you are done.
 
+> **Updates are automatic.** You only do setup once. When the extension updates, it refreshes the hook scripts on the next launch by itself — your bot stays connected, no re-setup needed.
+
 ---
 
 ## What you will see on your phone

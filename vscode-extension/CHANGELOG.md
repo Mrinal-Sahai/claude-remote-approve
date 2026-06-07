@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.4
+
+- **Auto-sync hooks on update.** After the extension updates, the on-disk hook
+  scripts are now refreshed automatically on the next launch — no need to re-run
+  Setup. Your bot token and chat id are preserved (they live in config.json and
+  are never touched); only the Python scripts and the idempotent settings.json
+  entries are refreshed. A one-time toast confirms it.
+
 ## 0.2.3
 
 - **Fix: Windows compatibility.** The hooks imported `fcntl` (Unix-only) at the

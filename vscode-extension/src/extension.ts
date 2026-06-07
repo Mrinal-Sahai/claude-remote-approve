@@ -89,6 +89,37 @@ async function uninstall(context: vscode.ExtensionContext): Promise<void> {
   });
 }
 
+/**
+ * Keep the on-disk hook scripts in sync with the bundled ones after an
+ * extension update — WITHOUT re-running setup. The bot token and chat id live
+ * in config.json and are never touched here; we only re-copy the Python scripts
+ * and refresh the (idempotent) settings.json entries. Needs no Telegram login.
+ */
+async function syncHooksIfUpdated(context: vscode.ExtensionContext): Promise<void> {
+  // Only relevant once the user has connected a bot (scripts already installed).
+  if (!inst.isConfigured()) {
+    return;
+  }
+  const version: string = context.extension.packageJSON.version;
+  const KEY = "claudeTgApprove.syncedVersion";
+  if (context.globalState.get<string>(KEY) === version) {
+    return; // on-disk hooks already match this build
+  }
+  try {
+    const python = inst.findPython();
+    inst.installHooks(context.extensionPath); // re-copy bundled scripts (config/allowlist untouched)
+    inst.patchSettings(python);                // idempotent: refresh matcher + timeout
+    await context.globalState.update(KEY, version);
+    vscode.window.showInformationMessage(
+      `Claude Remote Approve updated to v${version} — hooks refreshed automatically. Your bot stays connected.`
+    );
+  } catch {
+    // Non-fatal: e.g. Python temporarily off PATH. Don't block activation and
+    // don't bump the synced version — we'll retry on the next launch. The user
+    // can also run Setup manually.
+  }
+}
+
 async function openLog(): Promise<void> {
   const p = inst.logPath();
   if (!fs.existsSync(p)) {
@@ -130,6 +161,10 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   updateStatusBar();
+
+  // After an extension update, refresh the on-disk hooks automatically — no
+  // re-setup needed (the bot token / chat id are preserved).
+  void syncHooksIfUpdated(context);
 
   // First-run nudge: offer setup once if nothing is configured.
   if (!inst.isConfigured() && !context.globalState.get("claudeTgApprove.nudged")) {
