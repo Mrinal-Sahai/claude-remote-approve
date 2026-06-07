@@ -212,7 +212,7 @@ const DEFAULT_CONFIG: HookConfig = {
   enabled: true,
   watcher_timeout_seconds: 600,
   poll_interval_seconds: 2,
-  vscode_process_name: "Electron",
+  vscode_process_name: "Code",
 };
 
 export function readConfig(): HookConfig | null {

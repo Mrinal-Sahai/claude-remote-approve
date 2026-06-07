@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.7
+
+- **Fix: auto-detect the macOS editor process name.** Keystroke injection brings
+  VS Code to the front via `set frontmost of process "<name>"`. The process name
+  changed across VS Code versions — older builds appeared as `Electron`, newer
+  ones as `Code` — so a hardcoded `Electron` silently stopped raising the window
+  after a VS Code update, and the keystroke landed in whatever app was in front.
+  The macOS path now auto-detects the running editor (`Code`, `Code - Insiders`,
+  `VSCodium`, `Cursor`, `Windsurf`, then `Electron`), falling back to the
+  configured name. New installs default to `Code`. Windows/Linux paths unchanged.
+
 ## 0.2.6
 
 - **Fix: bring VS Code to front before injecting on Windows and Linux.** When a

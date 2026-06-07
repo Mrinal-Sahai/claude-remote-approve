@@ -54,8 +54,9 @@ DEFAULT_CONFIG = {
     "watcher_timeout_seconds": 600,
     # How often the watcher polls Telegram + checks if the prompt is still open.
     "poll_interval_seconds": 2,
-    # macOS process name VS Code shows up as for UI scripting (Electron app).
-    "vscode_process_name": "Electron",
+    # macOS process name VS Code shows up as for UI scripting. Modern builds use
+    # "Code"; _macos_editor_process() auto-detects if this doesn't match.
+    "vscode_process_name": "Code",
 }
 
 
@@ -451,15 +452,48 @@ def inject_decision(cfg, decision):
     return _inject_linux(decision)
 
 
+# macOS editor process candidates, in priority order. The System Events process
+# name has changed across VS Code versions: older builds showed up as "Electron",
+# newer ones as "Code". Forks register under their own names. We auto-detect the
+# one that's actually running so a VS Code update (or switching editor) never
+# silently breaks the activate step.
+_MACOS_EDITOR_CANDIDATES = [
+    "Code", "Code - Insiders", "VSCodium", "Cursor", "Windsurf", "Electron",
+]
+
+
+def _macos_editor_process(cfg):
+    """Resolve the live System Events process name for the editor window.
+
+    Tries the configured name first (if it exists), then the known editor
+    candidates. Falls back to the configured/default name if detection fails —
+    so behaviour never regresses below the old hardcoded path.
+    """
+    configured = cfg.get("vscode_process_name") or "Code"
+    ok, out = _osascript(
+        'tell application "System Events" to get name of '
+        "every process whose background only is false"
+    )
+    running = [n.strip() for n in out.split(",")] if ok else []
+    for cand in [configured, *_MACOS_EDITOR_CANDIDATES]:
+        if cand in running:
+            if cand != configured:
+                log(f"_macos_editor_process: configured {configured!r} not running, using {cand!r}")
+            return cand
+    return configured  # detection failed — keep original behaviour
+
+
 def _inject_macos(cfg, decision):
-    proc = cfg.get("vscode_process_name", "Electron")
+    proc = _macos_editor_process(cfg)
     # Bring VS Code to front so the keystroke lands in the right window.
     activate = f'tell application "System Events" to set frontmost of process "{proc}" to true'
-    _osascript(activate)
+    act_ok, act_out = _osascript(activate)
+    if not act_ok:
+        log(f"_inject_macos: activate {proc!r} failed: {act_out!r}")
     time.sleep(0.25)
     key = "key code 53" if decision == "deny" else "key code 36"  # Esc / Return
     ok, out = _osascript(f'tell application "System Events" to {key}')
-    log(f"inject_decision({decision}) -> ok={ok} out={out!r}")
+    log(f"inject_decision({decision}) -> proc={proc!r} ok={ok} out={out!r}")
     return ok
 
 
