@@ -16,7 +16,6 @@ For each callback it:
 It exits on its own once no prompt has been pending for IDLE_EXIT_S, so it never
 lingers as a zombie daemon.  approve.py respawns one on the next prompt.
 """
-import fcntl
 import os
 import re
 import socket
@@ -97,9 +96,7 @@ def main():
     # Singleton: hold the lock for our whole lifetime.  A second dispatcher
     # fails the non-blocking acquire and exits immediately.
     lock_file = open(SINGLETON_LOCK, "w")
-    try:
-        fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except OSError:
+    if not tg.acquire_lock(lock_file, blocking=False):
         return  # another dispatcher already owns the poll
 
     cfg = tg.load_config()
@@ -109,10 +106,7 @@ def main():
     try:
         poll_loop(cfg)
     finally:
-        try:
-            fcntl.flock(lock_file, fcntl.LOCK_UN)
-        except OSError:
-            pass
+        tg.release_lock(lock_file)
         lock_file.close()
         tg.log("dispatcher: stopped")
 

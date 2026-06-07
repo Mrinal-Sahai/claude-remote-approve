@@ -5,7 +5,6 @@ process that talks to Telegram and injects keystrokes), and tg_setup.py.
 
 Stdlib only — no third-party deps.
 """
-import fcntl
 import json
 import os
 import subprocess
@@ -13,6 +12,20 @@ import sys
 import time
 import urllib.parse
 import urllib.request
+
+# Cross-platform exclusive file lock: fcntl on POSIX, msvcrt on Windows.
+# (fcntl is Unix-only; importing it unconditionally crashes the hook on Windows.)
+try:
+    import fcntl  # POSIX
+except ImportError:  # Windows
+    fcntl = None
+    import msvcrt
+
+# Flags for spawning detached background processes. On Windows, CREATE_NO_WINDOW
+# stops a console window flashing on every approval; on POSIX this is 0 (no-op —
+# start_new_session does the detaching there). The conditional short-circuits so
+# the Windows-only attribute is never accessed on POSIX.
+DETACH_CREATIONFLAGS = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
@@ -202,8 +215,46 @@ def _load_ledger():
     return {"sends": [], "last_digest": 0}
 
 
+def acquire_lock(fh, blocking=True):
+    """Take an exclusive advisory lock on an open file handle, cross-platform.
+
+    Returns True if acquired, False if (non-blocking and) the lock is held
+    elsewhere. POSIX uses fcntl.flock; Windows uses msvcrt.locking on one byte.
+    """
+    if fcntl is not None:  # POSIX
+        flags = fcntl.LOCK_EX | (0 if blocking else fcntl.LOCK_NB)
+        try:
+            fcntl.flock(fh, flags)
+            return True
+        except OSError:
+            return False
+    # Windows
+    mode = msvcrt.LK_LOCK if blocking else msvcrt.LK_NBLCK
+    try:
+        fh.seek(0)
+        msvcrt.locking(fh.fileno(), mode, 1)
+        return True
+    except OSError:
+        return False
+
+
+def release_lock(fh):
+    """Release a lock taken by acquire_lock (best effort)."""
+    if fcntl is not None:
+        try:
+            fcntl.flock(fh, fcntl.LOCK_UN)
+        except OSError:
+            pass
+        return
+    try:
+        fh.seek(0)
+        msvcrt.locking(fh.fileno(), msvcrt.LK_UNLCK, 1)
+    except OSError:
+        pass
+
+
 def reserve_send_slot():
-    """Sliding-window rate gate for outgoing approval messages (flock-protected).
+    """Sliding-window rate gate for outgoing approval messages (lock-protected).
 
     Returns one of:
       "send"     -> caller may send a normal per-prompt approval message,
@@ -217,7 +268,7 @@ def reserve_send_slot():
     os.makedirs(BASE_DIR, exist_ok=True)
     lock_file = open(TG_SEND_LOCK, "w")
     try:
-        fcntl.flock(lock_file, fcntl.LOCK_EX)
+        acquire_lock(lock_file)  # best-effort serialization
         now = time.time()
         led = _load_ledger()
         sends = [t for t in led.get("sends", []) if now - t < RATE_WINDOW_S]
@@ -236,10 +287,7 @@ def reserve_send_slot():
         _save_ledger(led)
         return "suppress"
     finally:
-        try:
-            fcntl.flock(lock_file, fcntl.LOCK_UN)
-        except OSError:
-            pass
+        release_lock(lock_file)
         lock_file.close()
 
 
@@ -308,7 +356,7 @@ def get_updates(cfg, offset, timeout=20):
     os.makedirs(BASE_DIR, exist_ok=True)
     lock_file = open(TG_POLL_LOCK, "w")
     try:
-        fcntl.flock(lock_file, fcntl.LOCK_EX)
+        acquire_lock(lock_file)
         res = _api(cfg, "getUpdates", {
             "offset": offset,
             "timeout": timeout,
@@ -316,10 +364,7 @@ def get_updates(cfg, offset, timeout=20):
         }, timeout=timeout + 10)
         return res.get("result", [])
     finally:
-        try:
-            fcntl.flock(lock_file, fcntl.LOCK_UN)
-        except OSError:
-            pass
+        release_lock(lock_file)
         lock_file.close()
 
 

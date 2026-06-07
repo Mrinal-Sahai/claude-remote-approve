@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.3
+
+- **Fix: Windows compatibility.** The hooks imported `fcntl` (Unix-only) at the
+  top of `tg_common.py` and `dispatcher.py`, which crashed the entire hook on
+  Windows before it could run. File locking is now cross-platform — `fcntl` on
+  macOS/Linux (unchanged), `msvcrt` on Windows.
+- Detached background processes now spawn with `CREATE_NO_WINDOW` on Windows so
+  no console window flashes on each approval. On macOS/Linux this is a literal
+  `0` (no change — `start_new_session` still does the detaching).
+- macOS/Linux behaviour is byte-identical: every Windows-specific branch is
+  gated and never executes on POSIX.
+
 ## 0.2.2
 
 - **Windows PowerShell coverage.** Native Windows exposes a separate

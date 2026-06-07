@@ -53,6 +53,7 @@ def _spawn_detached(argv):
         argv,
         stdin=subprocess.DEVNULL, stdout=devnull, stderr=devnull,
         start_new_session=True, close_fds=True,
+        creationflags=tg.DETACH_CREATIONFLAGS,
     )
 
 
@@ -172,6 +173,7 @@ def main():
             [sys.executable, watcher, decision_id],
             stdin=subprocess.DEVNULL, stdout=devnull, stderr=devnull,
             start_new_session=True, close_fds=True,
+            creationflags=tg.DETACH_CREATIONFLAGS,
         )
         tg.log(f"spawned watcher for {decision_id}: {summary}")
     except Exception as e:  # noqa: BLE001

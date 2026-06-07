@@ -34,6 +34,7 @@ def ensure_dispatcher():
             [sys.executable, disp],
             stdin=subprocess.DEVNULL, stdout=devnull, stderr=devnull,
             start_new_session=True, close_fds=True,
+            creationflags=tg.DETACH_CREATIONFLAGS,
         )
     except Exception as e:  # noqa: BLE001
         tg.log(f"failed to spawn dispatcher: {e}")
