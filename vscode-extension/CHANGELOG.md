@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.6
+
+- **Fix: bring VS Code to front before injecting on Windows and Linux.** When a
+  phone tap arrives, Windows now runs `AppActivate('Visual Studio Code')` before
+  `SendKeys`, and Linux runs `xdotool windowfocus` before `xdotool key` — the
+  same pattern macOS has always used. Without this, if you had switched to
+  another app while waiting for the prompt, the Return/Escape keystroke landed
+  there instead of in VS Code. macOS behaviour is byte-identical.
+
 ## 0.2.5
 
 - **Fix: quote hook command paths.** The `settings.json` hook command embedded

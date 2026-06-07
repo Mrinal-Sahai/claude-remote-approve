@@ -464,8 +464,21 @@ def _inject_macos(cfg, decision):
 
 
 def _inject_windows(decision):
-    """Windows: SendKeys into the foreground window via PowerShell (no deps)."""
+    """Windows: bring VS Code to front, then SendKeys. No extra deps."""
     key = "{ESC}" if decision == "deny" else "{ENTER}"
+    # Bring VS Code to front first (mirrors the macOS activate step).
+    try:
+        ps_activate = (
+            "$wsh = New-Object -ComObject WScript.Shell; "
+            "$wsh.AppActivate('Visual Studio Code')"
+        )
+        subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_activate],
+            capture_output=True, text=True, timeout=5,
+        )
+        time.sleep(0.25)
+    except Exception:  # noqa: BLE001
+        pass  # fall through — SendKeys will fire at whatever window is front
     ps = (
         "Add-Type -AssemblyName System.Windows.Forms; "
         f"[System.Windows.Forms.SendKeys]::SendWait('{key}')"
@@ -484,8 +497,22 @@ def _inject_windows(decision):
 
 
 def _inject_linux(decision):
-    """Linux/X11: send the key with xdotool. Requires `xdotool` on PATH."""
+    """Linux/X11: focus the VS Code window, then send key with xdotool."""
     key = "Escape" if decision == "deny" else "Return"
+    # Bring VS Code to front first (mirrors the macOS activate step).
+    try:
+        wid_out = subprocess.run(
+            ["xdotool", "search", "--class", "Code"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if wid_out.returncode == 0 and wid_out.stdout.strip():
+            wid = wid_out.stdout.strip().split()[-1]  # last = topmost window
+            subprocess.run(
+                ["xdotool", "windowfocus", "--sync", wid],
+                capture_output=True, text=True, timeout=5,
+            )
+    except Exception:  # noqa: BLE001
+        pass  # fall through — xdotool key will fire at whatever has focus
     try:
         out = subprocess.run(
             ["xdotool", "key", "--clearmodifiers", key],
