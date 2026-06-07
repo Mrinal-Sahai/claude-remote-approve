@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.5
+
+- **Fix: quote hook command paths.** The `settings.json` hook command embedded
+  the Python and script paths unquoted. On Windows, a space anywhere in the path
+  (e.g. a username like `Mrinal Sahai`) truncated the command and the hook
+  failed silently. Both paths are now quoted — harmless on macOS/Linux (sh
+  parses them identically), correct on Windows.
+- `patchSettings` now upgrades an already-registered entry **in place** (command
+  + matcher + timeout), so existing installs pick up the quoting and PowerShell
+  matcher via the auto-sync, without duplicating entries.
+
 ## 0.2.4
 
 - **Auto-sync hooks on update.** After the extension updates, the on-disk hook

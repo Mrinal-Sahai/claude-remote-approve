@@ -76,9 +76,36 @@ interface HookEntry {
 const PRETOOL_HOOK_TIMEOUT_S = 35;
 
 /**
+ * Bring an already-registered hook entry up to date in place: refresh the
+ * matcher and, for the hook(s) referencing `script`, the command and timeout.
+ * Returns true if anything changed. Only touches our own entry.
+ */
+function upgradeEntry(entry: HookEntry, script: string, cmd: string, timeout?: number): boolean {
+  let changed = false;
+  if (entry.matcher !== MATCHER) {
+    entry.matcher = MATCHER;
+    changed = true;
+  }
+  for (const h of entry.hooks || []) {
+    if (!(h.command || "").includes(script)) {
+      continue;
+    }
+    if (h.command !== cmd) {
+      h.command = cmd;
+      changed = true;
+    }
+    if (timeout && h.timeout !== timeout) {
+      h.timeout = timeout;
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+/**
  * Register Pre/PostToolUse hooks in settings.json without clobbering existing
- * hooks. Idempotent: skips an event if our script is already referenced.
- * Returns the list of events it added.
+ * hooks. Idempotent: an already-registered entry is upgraded in place.
+ * Returns the list of events it added or updated.
  */
 export function patchSettings(python: string): string[] {
   const settingsPath = path.join(claudeDir(), "settings.json");
@@ -92,16 +119,17 @@ export function patchSettings(python: string): string[] {
   const added: string[] = [];
 
   const ensure = (event: string, script: string, timeout?: number) => {
-    const cmd = `${python} ${path.join(hookDir(), script)}`;
+    // Quote both paths so a space anywhere (e.g. a Windows username like
+    // "Mrinal Sahai") doesn't truncate the command. Harmless on POSIX, where
+    // sh parses "<path>" "<path>" identically when there are no spaces.
+    const cmd = `"${python}" "${path.join(hookDir(), script)}"`;
     const entries: HookEntry[] = (settings.hooks[event] = settings.hooks[event] || []);
     const existing = entries.find((e) => (e.hooks || []).some((h) => (h.command || "").includes(script)));
     if (existing) {
-      // Already registered: upgrade an out-of-date matcher in place (e.g. older
-      // installs missing `PowerShell`). Only our own entry, only the matcher
-      // field — the command is untouched, so VS Code behaviour is unchanged.
-      if (existing.matcher !== MATCHER) {
-        existing.matcher = MATCHER;
-        added.push(`${event} → ${script} (matcher updated)`);
+      // Upgrade our own entry in place: refresh the matcher (older installs
+      // missing `PowerShell`) and command (older installs with unquoted paths).
+      if (upgradeEntry(existing, script, cmd, timeout)) {
+        added.push(`${event} → ${script} (updated)`);
       }
       return;
     }

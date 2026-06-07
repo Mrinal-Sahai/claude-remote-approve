@@ -33,7 +33,9 @@ test("patchSettings creates Pre+PostToolUse when settings.json is absent", () =>
   const s = readSettings();
   assert.ok(s.hooks.PreToolUse[0].hooks[0].command.includes("approve.py"));
   assert.ok(s.hooks.PostToolUse[0].hooks[0].command.includes("post_tool.py"));
-  assert.ok(s.hooks.PreToolUse[0].hooks[0].command.startsWith(PY));
+  // Paths are quoted (so spaces in the path don't truncate the command on Windows).
+  assert.ok(s.hooks.PreToolUse[0].hooks[0].command.startsWith(`"${PY}"`));
+  assert.ok(s.hooks.PreToolUse[0].hooks[0].command.includes(`"`));
 });
 
 test("patchSettings preserves the user's existing hooks", () => {
@@ -60,6 +62,32 @@ test("patchSettings is idempotent (no duplicates on re-run)", () => {
   const s = readSettings();
   assert.equal(s.hooks.PreToolUse.length, 1);
   assert.equal(s.hooks.PostToolUse.length, 1);
+});
+
+test("patchSettings upgrades an older unquoted entry in place (no duplicate)", () => {
+  // Simulate an install from before the quoting fix: our entry, unquoted command,
+  // stale matcher (no PowerShell).
+  fs.writeFileSync(
+    path.join(tmp, "settings.json"),
+    JSON.stringify({
+      hooks: {
+        PreToolUse: [
+          {
+            matcher: "Bash|Write|Edit|MultiEdit|NotebookEdit|WebFetch",
+            hooks: [{ type: "command", command: `${PY} ${path.join(tmp, "hooks", "tg-approve", "approve.py")}` }],
+          },
+        ],
+      },
+    })
+  );
+  const added = inst.patchSettings(PY);
+  const s = readSettings();
+  // Still exactly one PreToolUse entry — upgraded in place, not duplicated.
+  assert.equal(s.hooks.PreToolUse.length, 1, "no duplicate entry");
+  const cmd = s.hooks.PreToolUse[0].hooks[0].command;
+  assert.ok(cmd.startsWith(`"${PY}"`), "command is now quoted");
+  assert.ok(s.hooks.PreToolUse[0].matcher.includes("PowerShell"), "matcher upgraded to include PowerShell");
+  assert.ok(added.some((a) => a.includes("updated")), "reported as updated");
 });
 
 test("unpatchSettings removes only ours, keeps the rest, prunes empties", () => {
