@@ -23,18 +23,21 @@ Either way: one tap on your phone, Claude continues, you never sat back down.
 
 ## Quick start (about 2 minutes)
 
-### Step 1 — Create a Telegram bot
-
-1. Open Telegram and search for **[@BotFather](https://t.me/BotFather)**.
-2. Send `/newbot` and follow the prompts (give it a name and a username).
-3. Copy the **bot token** BotFather gives you — it looks like `1234567890:AAH...`.
-
-### Step 2 — Install and run Setup
+### Step 1 — Install and run Setup
 
 1. Install this extension.
 2. Open the Command Palette (`Cmd+Shift+P`) and run **"Telegram Approve: Setup / Connect bot"**.
    *(Or click the `$(rocket) Telegram: setup` item in the status bar.)*
-3. Paste the bot token from Step 1.
+
+### Step 2 — Create your bot (one click from the wizard)
+
+The wizard opens with an **"Open @BotFather"** button — click it (no need to go hunting in Telegram), then:
+
+1. Send `/newbot` and follow the two prompts (a name and a username).
+2. Copy the **bot token** BotFather gives you — it looks like `1234567890:AAH...`.
+3. Paste it back into the VS Code input box.
+
+*(Already have a token? Pick **"I already have a token"** to skip straight to pasting.)*
 
 ### Step 3 — Connect your phone
 

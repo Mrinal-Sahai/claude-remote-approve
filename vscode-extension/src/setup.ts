@@ -10,9 +10,26 @@ export const SECRET_TOKEN_KEY = "claudeTgApprove.botToken";
 
 async function promptToken(context: vscode.ExtensionContext): Promise<string | undefined> {
   const existing = await context.secrets.get(SECRET_TOKEN_KEY);
+
+  // First, help the user get a token without leaving the flow to go hunt for
+  // @BotFather. (Telegram has no API to mint tokens — only @BotFather can — so
+  // this is the smoothest it gets: one click to the right chat, then paste.)
+  const choice = await vscode.window.showInformationMessage(
+    "Step 1 of 3 — Connect a Telegram bot.\n\n" +
+      "Need one? Click below to open @BotFather, send /newbot, follow the two prompts " +
+      "(name + username), and copy the token it gives you — it looks like 1234567890:AAH...",
+    { modal: true },
+    "Open @BotFather",
+    "I already have a token"
+  );
+  if (!choice) { return undefined; }
+  if (choice === "Open @BotFather") {
+    vscode.env.openExternal(vscode.Uri.parse("https://t.me/BotFather"));
+  }
+
   const token = await vscode.window.showInputBox({
-    title: "Step 1 of 3 — Bot token",
-    prompt: "Paste the token from @BotFather. Don't have one? Open https://t.me/BotFather, type /newbot and follow the steps.",
+    title: "Step 1 of 3 — Paste your bot token",
+    prompt: "Paste the token @BotFather gave you (looks like 1234567890:AAH...).",
     placeHolder: "1234567890:AAH...",
     value: existing || "",
     password: true,

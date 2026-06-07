@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1
+
+- Setup wizard now offers a one-click **"Open @BotFather"** button before the
+  token prompt, so you don't have to leave the flow to find it. Pick "I already
+  have a token" to skip straight to pasting.
+
 ## 0.2.0
 
 - **CLI support (hands-free everywhere).** When Claude Code runs in a terminal
