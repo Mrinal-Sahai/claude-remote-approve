@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.8
+
+- Fresh-install setup now defaults `vscode_process_name` to `Code` (was
+  `Electron`), matching the v0.2.7 runtime auto-detection. Existing configs are
+  preserved and resolved at runtime either way — this is consistency only.
+
 ## 0.2.7
 
 - **Fix: auto-detect the macOS editor process name.** Keystroke injection brings

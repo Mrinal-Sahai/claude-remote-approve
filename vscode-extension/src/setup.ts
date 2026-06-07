@@ -188,7 +188,7 @@ export async function runSetup(context: vscode.ExtensionContext): Promise<boolea
         enabled: true,
         watcher_timeout_seconds: prev?.watcher_timeout_seconds ?? 600,
         poll_interval_seconds: prev?.poll_interval_seconds ?? 2,
-        vscode_process_name: prev?.vscode_process_name ?? "Electron",
+        vscode_process_name: prev?.vscode_process_name ?? "Code",
       });
 
       // 5. register hooks in settings.json
