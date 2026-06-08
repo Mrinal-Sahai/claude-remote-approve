@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.9
+
+- **Fix: CLI phone taps wrongly refused as "expired" during parallel commands.**
+  `post_tool.py` matched pending prompts by `tool_name` alone, so when Claude
+  ran several `Bash` calls at once (it batches `find`/`grep`) and you approved
+  one, the PostToolUse for that run marked **every other pending `Bash` prompt**
+  `answered` — and the dispatcher then refused your phone tap on them with
+  "prompt expired, answer in the terminal." Now `post_tool` (a) never touches
+  CLI blocking prompts (they carry a `deadline` and are owned by the blocking
+  hook), and (b) matches the exact `tool_input`, not just the tool name, so one
+  call can't cancel another. VS Code keystroke path unchanged.
+
 ## 0.2.8
 
 - Fresh-install setup now defaults `vscode_process_name` to `Code` (was
